@@ -21,16 +21,22 @@ def train_depthnet(args):
     torch.autograd.set_detect_anomaly(True)
     set_random_seed(808)
     
+    print("1. Creating logger...")
     save_folder, ckpt_folder, log_folder, writer = create_logger(args)
     
+    print("2. Creating URDFRobot...")
     urdf_robot_name = args.urdf_robot_name
     robot = URDFRobot(urdf_robot_name)
+    print("   URDFRobot created successfully")
  
+    print("3. Setting up device...")
     device_id = args.device_id
     device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-    
+    print(f"   Using device: {device}")
 
+    print("4. Loading dataset...")
     train_ds_names = args.train_ds_names
+    print(f"   Train dataset path: {train_ds_names}")
     test_ds_name_dr = train_ds_names.replace("train_dr","test_dr")
     if urdf_robot_name != "baxter":
         test_ds_name_photo = train_ds_names.replace("train_dr","test_photo")
@@ -215,7 +221,7 @@ def train_depthnet(args):
             # Cast model to the GPU
             model.to(device)
             model.float()
-            model = torch.nn.DataParallel(model, device_ids=device_id, output_device=device_id[0])
+            model = torch.nn.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
             # Forward
             if args.use_rootnet_xy_branch:

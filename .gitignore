@@ -8,3 +8,6 @@ __pycache__
 /unit_test
 
 run.sh
+mc.sh
+so100_dreamdataset_train/
+so100_dream/

@@ -27,7 +27,7 @@ from dataset.roboutils import (bbox_transform, get_bbox, get_bbox_raw,
 KUKA_SYNT_TRAIN_DR_INCORRECT_IDS = {83114, 28630, }
 
 def build_frame_index(base_dir):
-    im_paths = base_dir.glob('*.jpg')
+    im_paths = list(base_dir.glob('*.jpg')) + list(base_dir.glob('*.png'))
     infos = defaultdict(list)
     for n, im_path in tqdm(enumerate(sorted(im_paths))):
         view_id = int(im_path.with_suffix('').with_suffix('').name)
@@ -93,6 +93,9 @@ class DreamDataset(torch.utils.data.Dataset):
         elif 'kuka' in str(base_dir):
             self.keypoint_names = KEYPOINT_NAMES['kuka']
             self.label = 'kuka'
+        elif 'so100' in str(base_dir):
+            self.keypoint_names = KEYPOINT_NAMES['so100']
+            self.label = 'so100'
         else:
             raise NotImplementedError
         
@@ -114,7 +117,41 @@ class DreamDataset(torch.utils.data.Dataset):
         rgb = np.asarray(Image.open(rgb_path))
         images_original = torch.FloatTensor(rgb.copy()).permute(2,0,1)
         mask = None
-        annotations = json.loads(rgb_path.with_suffix('').with_suffix('.json').read_text())
+        try:
+            annotations = json.loads(rgb_path.with_suffix('').with_suffix('.json').read_text())
+            obj_data = annotations['objects'][0]
+        except FileNotFoundError:
+            # Inference-only mode: just return the image and image_id, plus dummy fields for model compatibility
+            h, w = images_original.shape[1], images_original.shape[2]
+            full_bbox = [0, 0, w, h]
+            from dataset.const import KEYPOINT_NAMES, JOINT_NAMES
+            jointpose_dict = {k: 0.0 for k in JOINT_NAMES['so100']}
+            n_kp = len(KEYPOINT_NAMES['so100'])
+            dummy_state = {
+                "objects": [{
+                    "keypoints_2d": np.zeros((n_kp, 3)),
+                    "TCO_keypoints_3d": np.zeros((n_kp, 3)),
+                }],
+                "camera": {
+                    "K": np.eye(3)
+                }
+            }
+            mask = np.ones((h, w), dtype=np.uint8)
+            return {
+                "image_id": idx,
+                "scene_id": idx,
+                "images_original": images_original,
+                "meta": {"rgb": images_original.permute(1,2,0).numpy(), "bbox": full_bbox, "mask": mask, "state": dummy_state, "bboxes_raw": full_bbox},
+                "K_original": np.eye(3),
+                "bbox_strict_bounded_original": np.array(full_bbox),
+                "bbox_gt2d_extended_original": np.array(full_bbox),
+                "TCO": np.zeros((4, 4)),
+                "jointpose": jointpose_dict,
+                "keypoints_2d_original": np.zeros((n_kp, 2)),
+                "valid_mask": np.zeros((n_kp,)),
+                "keypoints_3d_original": np.zeros((n_kp, 3)),
+                # Add any other fields your model's forward pass needs
+            }
 
         # Camera
         TWC = np.eye(4)
@@ -142,8 +179,7 @@ class DreamDataset(torch.utils.data.Dataset):
         )
         label = self.label
 
-        # Joints
-        obj_data = annotations['objects'][0]
+        # Joints and Object Pose
         if 'quaternion_xyzw' in obj_data:
             rotMat = quat_to_rotmat_np(np.array(obj_data['quaternion_xyzw']))
             translation = np.array(obj_data['location']) * self.scale
@@ -157,7 +193,6 @@ class DreamDataset(torch.utils.data.Dataset):
                 [1, 0, 0],
             ])
             TWO[:3, :3] = TWO[:3, :3] @ R_NORMAL_UE  
-            
         else:
             rotMat = quat_to_rotmat_np(np.array([1.0,0.0,0.0,0.0]))
             translation = np.array(obj_data['location']) * self.scale
@@ -170,14 +205,16 @@ class DreamDataset(torch.utils.data.Dataset):
         TCO = invert_T(TWC) @ TWO
         TCO_r = torch.FloatTensor(np.asarray(TCO))
 
-        joints = annotations['sim_state']['joints']
-        joints = OrderedDict({d['name'].split('/')[-1]: float(d['position']) for d in joints})
+        # Joints
+        joint_names = annotations['sim_state']['joint_names']
+        positions = annotations['sim_state']['position']
+        joints = OrderedDict(zip(joint_names, positions))
         if self.label == 'kuka':
             joints = {k.replace('iiwa7_', 'iiwa_'): v for k,v in joints.items()}
 
         # keypoints 
         keypoints_data = obj_data['keypoints']
-        keypoints_2d = np.concatenate([np.array(kp['projected_location'])[None] for kp in keypoints_data], axis=0)
+        keypoints_2d = np.concatenate([np.array(kp['projected_location'])[None] for kp in keypoints_data.values()], axis=0)
         keypoints_2d = np.unique(keypoints_2d, axis=0)
         
         # bboxes
@@ -197,12 +234,12 @@ class DreamDataset(torch.utils.data.Dataset):
         bbox_gt2d_extended_original = torch.FloatTensor(bbox_gt2d_extended_original)
         bbox_strict_bounded_original = torch.FloatTensor(bbox_strict_bounded_original)
         
-        TCO_keypoints_3d = {kp['name']: np.array(kp['location']) * self.scale for kp in keypoints_data}
+        TCO_keypoints_3d = {k: np.array(v['location']) * self.scale for k, v in keypoints_data.items()}
         TCO_keypoints_3d = np.array([TCO_keypoints_3d.get(k, np.nan) for k in self.keypoint_names])
         assert((np.isnan(TCO_keypoints_3d) == False).all())
 
-        keypoints_2d = {kp['name']: kp['projected_location'] for kp in keypoints_data}
-        keypoints_2d = np.array([np.append(keypoints_2d.get(k, np.nan) ,0)for k in self.keypoint_names])
+        keypoints_2d_dict = {k: v['projected_location'] for k, v in keypoints_data.items()}
+        keypoints_2d = np.array([np.append(keypoints_2d_dict.get(k, np.nan), 0) for k in self.keypoint_names])
         mask = make_masks_from_det(bbox[None], h, w).numpy().astype(np.uint8)[0] * 1     
         
         robot = dict(label=label, name=label, joints=joints,

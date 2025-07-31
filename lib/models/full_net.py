@@ -6,7 +6,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-from dataset.const import JOINT_BOUNDS, JOINT_NAMES
+from dataset.const import JOINT_BOUNDS, JOINT_NAMES, KEYPOINT_NAMES
 from .backbones.HRnet import get_hrnet
 from .backbones.Resnet import get_resnet
 from utils.geometries import rot6d_to_rotmat, rotmat_to_quat, rotmat_to_rot6d
@@ -49,6 +49,9 @@ class RootNetwithRegInt(nn.Module):
         elif robot_type == "baxter":
             DoF = 15
             nkpt = 17
+        elif robot_type == "so100":
+            DoF = len(JOINT_NAMES['so100'])
+            nkpt = len(KEYPOINT_NAMES['so100'])
         else:
             raise ValueError(f"Robot type {robot_type} is not supported.")
         npose = DoF

@@ -26,6 +26,7 @@ from lib.utils.geometries import (angle_axis_to_rotation_matrix,
 from lib.utils.metrics import (compute_metrics_batch, draw_add_curve,
                            draw_depth_figure, summary_add_pck)
 from lib.utils.vis import vis_joints_3d
+import csv
 
 
 def cast(obj, device, dtype=None):
@@ -194,7 +195,7 @@ def test_network(args):
             print('saved')
         
         return scene_id, image_dis3d_avg, image_dis2d_avg, batch_dis3d_avg, batch_dis2d_avg, \
-            batch_l1jointerror_avg, image_l1jointerror_avg, images_id, root_depth_error, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance
+            batch_l1jointerror_avg, image_l1jointerror_avg, images_id, root_depth_error, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance, pred_pose
 
     def test():
         model.eval()
@@ -204,29 +205,21 @@ def test_network(args):
         add_thresholds = [1,5,10,20,40,60,80,100]
         pck_thresholds = [2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0]
         metric_l1joint = [AverageValueMeter() for i in range(robot.dof)]
+        output_csv_path = os.path.join(args.exp_path, 'result', 'predictions.csv')
+        os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
+        csv_writer = csv.writer(open(output_csv_path, 'w', newline=''))
+        # No header row
         with torch.no_grad():
             for idx, sample in enumerate(tqdm(ds_iter_test, dynamic_ncols=True)):
                 need_flops = True if idx == 0 else False
                 scene_id, image_dis3d_avg, image_dis2d_avg, batch_dis3d_avg, batch_dis2d_avg, \
-                batch_l1jointerror_avg, image_l1jointerror_avg, images_id, error_depth, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance = \
+                batch_l1jointerror_avg, image_l1jointerror_avg, images_id, error_depth, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance, pred_pose = \
                 farward_loss(test_args=args,input_batch=sample, device=device, model=model, use_view=False, file_name=None, train=False, need_flops=need_flops)
-                time_root.add(times[0])
-                time_other.add(times[1])
-                time_image.add(times[2])
-                alldis["id"].extend(images_id)
-                alldis["scene_id"].extend(list(scene_id))
-                alldis["dis3d"].extend(image_dis3d_avg)
-                alldis["dis2d"].extend(image_dis2d_avg)
-                alldis["jointerror"].extend(image_l1jointerror_avg)
-                alldis["deptherror"].extend(error_depth)
-                alldis["gt_root_depth"].extend(gt_root_depth.detach().cpu().numpy())
-                alldis["deptherror_relative"].extend(batch_error_relative)
-                alldis["mean_rot_angle"].extend(mean_rotang)
-                alldis["mean_kp2d_distance"].append(mean_kp2d_distance.item())
-                alldis_relative["dis3d"].extend(error3d_relative)
-                alldis_relative["dis2d"].extend(image_dis2d_avg)
-                for id in range(robot.dof):
-                    metric_l1joint[id].add(batch_l1jointerror_avg[id])
+                batch_size = sample['images_original'].shape[0]
+                for i in range(batch_size):
+                    # Write only the joint values as plain floats
+                    joints = [float(x) for x in pred_pose[i].detach().cpu().numpy().tolist()]
+                    csv_writer.writerow(joints)
         assert len(alldis["scene_id"]) == len(alldis["dis3d"])
         itemid = np.array(alldis["id"])
         ids = np.array(alldis["scene_id"])
@@ -301,7 +294,7 @@ def test_network(args):
             print(f"3d errors (m): {error_values}")
             file_name = f"Best predictions {batchid+1}"
             scene_id, image_dis3d_avg, image_dis2d_avg, batch_dis3d_avg, batch_dis2d_avg, \
-            batch_l1jointerror_avg, image_l1jointerror_avg, images_id, depth_error, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance = \
+            batch_l1jointerror_avg, image_l1jointerror_avg, images_id, depth_error, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance, pred_pose = \
             farward_loss(test_args=args,input_batch=sample, device=device, model=model, use_view=True, file_name=file_name, errors=error_values, train=False)
             if batchid == 4:
                 break
@@ -316,7 +309,7 @@ def test_network(args):
             print(f"3d errors (m): {error_values}")
             file_name = f"Worst predictions {batchid+1}"
             scene_id , image_dis3d_avg, image_dis2d_avg, batch_dis3d_avg, batch_dis2d_avg, \
-            batch_l1jointerror_avg, image_l1jointerror_avg, images_id, depth_error, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance = \
+            batch_l1jointerror_avg, image_l1jointerror_avg, images_id, depth_error, gt_root_depth, batch_error_relative, error3d_relative, times, mean_rotang, mean_kp2d_distance, pred_pose = \
             farward_loss(test_args=args,input_batch=sample, device=device, model=model, use_view=True, file_name=file_name, errors=error_values, train=False)
             if batchid == 4:
                 break     

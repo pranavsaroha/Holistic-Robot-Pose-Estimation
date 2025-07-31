@@ -8,7 +8,8 @@ import pyrender
 import torch
 from config import (BAXTER_DESCRIPTION_PATH, KUKA_DESCRIPTION_PATH,
                     OWI_DESCRIPTION, OWI_KEYPOINTS_PATH,
-                    PANDA_DESCRIPTION_PATH, PANDA_DESCRIPTION_PATH_VISUAL)
+                    PANDA_DESCRIPTION_PATH, PANDA_DESCRIPTION_PATH_VISUAL,
+                    SO100_DESCRIPTION_PATH, SO100_DESCRIPTION_PATH_VISUAL)
 from dataset.const import JOINT_NAMES, LINK_NAMES
 from PIL import Image
 from utils.geometries import (quat_to_rotmat, rot6d_to_rotmat, rot9d_to_rotmat,
@@ -22,6 +23,8 @@ if platform.system() == "Linux":
 class URDFRobot:
     def __init__(self,robot_type):
         self.robot_type = robot_type
+        print(f"   Creating URDFRobot for type: {robot_type}")
+        
         if self.robot_type == "panda":
             self.urdf_path = PANDA_DESCRIPTION_PATH
             self.urdf_path_visual = PANDA_DESCRIPTION_PATH_VISUAL
@@ -42,12 +45,30 @@ class URDFRobot:
             self.urdf_path_visual = OWI_DESCRIPTION
             self.dof = 4
             self.robot_for_render = None
+        elif self.robot_type == "so100":
+            print(f"   Setting up SO100 paths...")
+            self.urdf_path = SO100_DESCRIPTION_PATH
+            self.urdf_path_visual = SO100_DESCRIPTION_PATH_VISUAL
+            print(f"   URDF path: {self.urdf_path}")
+            print(f"   URDF path exists: {os.path.exists(self.urdf_path)}")
+            self.dof = 6  # SO100 has 6 joints
+            print(f"   Creating PandaArm renderer...")
+            self.robot_for_render = PandaArm(self.urdf_path)
+            print(f"   PandaArm renderer created")
+        else:
+            raise NotImplementedError(f"Robot type '{robot_type}' not supported")
+            
+        print(f"   Loading URDF from: {self.urdf_path}")
         self.robot = URDF.load(self.urdf_path)
+        print(f"   URDF loaded successfully")
         self.robot_visual = URDF.load(self.urdf_path_visual)
+        print(f"   Visual URDF loaded successfully")
         self.actuated_joint_names = JOINT_NAMES[self.robot_type]
         self.global_scale = 1.0
         self.device = None
+        print(f"   Getting link names and offsets...")
         self.link_names, self.offsets = self.get_link_names_and_offsets()
+        print(f"   URDFRobot initialization complete")
         
     def get_link_names_and_offsets(self):
         if self.robot_type == "panda" or self.robot_type == "kuka":
@@ -76,6 +97,15 @@ class URDFRobot:
             keypoint_infos = pd.read_json(OWI_KEYPOINTS_PATH)
             kp_offsets = torch.as_tensor(np.stack(keypoint_infos['offset'])).unsqueeze(0).unsqueeze(-1).to(torch.float)
             return LINK_NAMES[self.robot_type], kp_offsets
+        elif self.robot_type == "so100":
+            # For SO100, we need to define the link names and offsets
+            # Based on the URDF, the links are: base, shoulder, upper_arm, lower_arm, wrist, gripper, jaw
+            link_names = ["base", "shoulder", "upper_arm", "lower_arm", "wrist", "gripper", "jaw"]
+            
+            # For now, use zero offsets (you may need to adjust these based on your specific needs)
+            kp_offsets = torch.zeros((len(link_names),3),dtype=torch.float).unsqueeze(0).unsqueeze(-1) * self.global_scale
+            kp_offsets = kp_offsets.to(torch.float)
+            return link_names, kp_offsets
         else:
             raise(NotImplementedError)
     

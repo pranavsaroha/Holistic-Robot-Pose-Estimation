@@ -28,6 +28,9 @@ KEYPOINT_NAMES={
     ],
     'owi535' :[
        'Rotation', 'Base', 'Elbow', 'Wrist'
+    ],
+    'so100' : [
+        'base', 'shoulder', 'upper_arm', 'lower_arm', 'wrist', 'gripper', 'jaw'
     ]
 }
 
@@ -52,8 +55,12 @@ KEYPOINT_NAMES_TO_LINK_NAMES = {
     },
     "owi535" : {
         'Rotation':'Rotation', 'Base':'Base', 'Elbow':'Elbow', 'Wrist':'Wrist'
+    },
+    "so100" : {
+        'base':'base', 'shoulder':'shoulder', 'upper_arm':'upper_arm', 
+        'lower_arm':'lower_arm', 'wrist':'wrist', 'gripper':'gripper', 'jaw':'jaw'
     }
-    }
+}
 
 LINK_NAMES = {
     'panda': ['panda_link0', 'panda_link2', 'panda_link3', 'panda_link4', 
@@ -64,10 +71,10 @@ LINK_NAMES = {
                'left_lower_shoulder', 'right_upper_elbow', 'left_upper_elbow', 'right_lower_elbow', 
                'left_lower_elbow', 'right_upper_forearm', 'left_upper_forearm', 'right_lower_forearm', 
                'left_lower_forearm', 'right_wrist', 'left_wrist', 'right_hand', 'left_hand'],
-    #'owi535': ["Base","Elbow","Wrist","Model","Model","Model","Model","Base","Base","Base","Base","Elbow","Elbow","Elbow","Elbow","Wrist","Wrist"],
     'owi535' :[
         'Rotation', 'Base', 'Elbow', 'Wrist'
-    ]
+    ],
+    'so100': ['base', 'shoulder', 'upper_arm', 'lower_arm', 'wrist', 'gripper', 'jaw']
 }
 
 JOINT_NAMES={
@@ -80,14 +87,16 @@ JOINT_NAMES={
                'left_w0', 'right_w1', 'left_w1', 'right_w2', 'left_w2'],
     'owi535' :[
         'Rotation', 'Base', 'Elbow', 'Wrist'
-    ]
+    ],
+    'so100': ['shoulder_pan', 'shoulder_lift', 'elbow_flex', 'wrist_flex', 'wrist_roll', 'gripper']
 }
 
 JOINT_TO_KP = {
     'panda': [1, 1, 2, 3, 4, 4, 5, 6],
     'kuka':[1,2,3,4,5,6,7],
     'baxter':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
-    'owi535':[0,1,2,3]  
+    'owi535':[0,1,2,3],
+    'so100':[1,2,3,4,5,6]
 }
 
 # flip_pairs=[
@@ -163,6 +172,14 @@ INITIAL_JOINT_ANGLE = {
             "Base":0.0,
             "Elbow":0.0,
             "Wrist":0.0
+        },
+        "so100": {
+            "shoulder_pan": 0.0,
+            "shoulder_lift": 0.0,
+            "elbow_flex": 0.0,
+            "wrist_flex": 0.0,
+            "wrist_roll": 0.0,
+            "gripper": 0.0
         }
     }, 
     "mean": {
@@ -207,6 +224,14 @@ INITIAL_JOINT_ANGLE = {
             "Base":-0.523598,
             "Elbow":0.523598,
             "Wrist":0.0
+        },
+        "so100": {
+            "shoulder_pan": 0.0,
+            "shoulder_lift": 1.75,  # Mid-range of 0 to 3.5
+            "elbow_flex": -1.57,    # Mid-range of -3.14 to 0
+            "wrist_flex": -0.65,    # Mid-range of -2.5 to 1.2
+            "wrist_roll": 0.0,
+            "gripper": 0.9          # Mid-range of -0.2 to 2.0
         }
     }
 }
@@ -245,6 +270,12 @@ JOINT_BOUNDS = {
             [-3.0590,  3.0590],
             [-3.0590,  3.0590]],
     "owi535":[
+        [-2.268928,2.268928],
+        [-1.570796,1.047198],
+        [-1.047198, 1.570796],
+        [-0.785398,0.785398]
+    ],
+    "so100":[
         [-2.268928,2.268928],
         [-1.570796,1.047198],
         [-1.047198, 1.570796],

@@ -37,3 +37,7 @@ BAXTER_DESCRIPTION_PATH = os.path.abspath("/DATA/disk1/cvda_share/robopose_data/
 
 OWI_DESCRIPTION = os.path.abspath(DEPS_DIR / 'owi-description' / 'owi535_description' / 'owi535.urdf')
 OWI_KEYPOINTS_PATH = os.path.abspath(DEPS_DIR / 'owi-description' / 'keypoints.json')
+
+# Add SO100 support
+SO100_DESCRIPTION_PATH = os.path.abspath("assets/so100/so100.urdf")
+SO100_DESCRIPTION_PATH_VISUAL = os.path.abspath("assets/so100/so100.urdf")
