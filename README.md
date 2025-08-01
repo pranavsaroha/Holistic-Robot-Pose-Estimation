@@ -1,4 +1,4 @@
-<h1 align="center"> HoRoPose: Real-time Holistic Robot Pose Estimation with Unknown States <br> (ECCV 2024)</h1>
+<h1 align="center"> HoRoPose(Now with LeRobot SO100 support!): Real-time Holistic Robot Pose Estimation with Unknown States <br> (ECCV 2024)</h1>
 
 <div align="center">
 
@@ -14,16 +14,58 @@
 <img src="assets/holistic.gif" width="800"/>
 
 This is the official PyTorch implementation of the paper "Real-time Holistic Robot Pose Estimation with Unknown States". It provides an efficient framework for <b>real-time</b> robot pose estimation from RGB images <b>without</b> requiring known robot states.
-
-## Installation
-This project's dependencies include python 3.9, pytorch 1.13, pytorch3d 0.7.4 and CUDA 11.7.
-The code is developed and tested on Ubuntu 20.04.
+## Run Steps 1-3 on H100 GPU.
+## 1. Creating HoRoPose Conda Environment
 
 ```bash
-    pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117
-    pip install -r requirements.txt
-    conda install pytorch3d=0.7.4 # from https://anaconda.org/pytorch3d/pytorch3d/files
+sudo apt update && sudo apt -y install git ffmpeg
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O mc.sh
+bash mc.sh -b -p $HOME/miniconda && eval "$($HOME/miniconda/bin/conda shell.bash hook)"
+
+conda create -y -n horopose python=3.10
+conda activate horopose
+
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+conda install -y pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia
+conda install -c conda-forge opencv
 ```
+## 2. Clone HoRoPose and Install Required Packages
+```bash
+git clone https://github.com/oliverbansk/holistic-robot-pose-estimation.git holorobot
+cd holorobot
+pip install -r requirements.txt        
+pip install simplejson torchnet joblib yacs termcolor colorama transforms3d \
+            pybullet xarray
+```
+
+
+## 3. Obtain so100 Urdf and tmp files
+```bash
+mkdir -p assets/so100
+curl -L -o assets/so100/so100.urdf \   https://raw.githubusercontent.com/TheRobotStudio/SO-ARM100/master/Simulation/SO100/so100.urdf
+
+git clone --depth 1 --filter=blob:none \
+     https://github.com/TheRobotStudio/SO-ARM100 tmp
+mv tmp/Simulation/SO100/assets/*.stl assets/so100/
+rm -rf tmp
+```
+## Run steps 4-6 on Local Computer
+## 4. Generate camera intrinsic and extrinsic jsons(Note convert all csv files into proper format(no spaces, quotes, brackets, or headings)
+This step will be essential in creating the so100dreamdataset. This step utilizes a previously created checkerboard dataset and the checkerboard csv file. In simple and general terms, the checkerboard serves to capture all various possible positions of the so100 arm, which results in the prediction of the robot’s 3-D keypoints in the image frame.
+
+To do this, first, you must run the calibrate_dual.py(so100_dream/calibrate_dual.py) script which uses checkered images(so100_dream/checkerboard_images) and their csv file(initial-episode-states.csv) to generate the intrinsics and extriniscs.
+
+## 5. Generate the full so100dreamdataset used to train the HoRoPose motor position detection model
+Run the make_dream.py script at so100_dream/make_dream.py(make sure you do this under Urdfpy_legacy conda environment: use python 3.8.20 because urdfpy only works with older python versions(like 3.8.20), then install urdfpy 0.0.22 package, everything else remains same as horopose conda environment) which uses images from 20 rgb videos and the 20rgb video csv file and urdf.
+
+Run shell script commands to compile images(use convert_images_to_jpg.py) and compile json from make_dream.py into one dataset(rename files to keep it tidy).
+
+Generates so100_dreamdataset_train for real images with ground truth.
+
+## 6. Free Flowing steps(no specific order, just files need to be uploaded/changed)
+Adapt depthnet and full.yaml files for the so100 arm, attach the so100_dreamdataset_train folder. For full.yaml, after training, make sure to put the correct path to the depthnet model. 
 
 ## Data and Model Preparation
 
