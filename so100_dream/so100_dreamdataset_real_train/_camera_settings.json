@@ -1,0 +1,24 @@
+{
+        "camera_settings": [
+                {
+                        "id": "", 
+                        "name": "camera_color_optical_frame", 
+                        "intrinsic_settings": {
+                                "fx": 985.8864427152967, 
+                                "fy": 984.3793656467155, 
+                                "cx": 643.8654323565498, 
+                                "cy": 356.84741001825694, 
+                                "s": 0.0, 
+                                "hfov": "", 
+                                "resolution": {
+                                        "width": 1280, 
+                                        "height": 720
+                                }
+                        }, 
+                        "captured_image_size": {
+                                "width": 1280, 
+                                "height": 720
+                        }
+                }
+        ]
+} 

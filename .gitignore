@@ -2,12 +2,12 @@ __pycache__
 *.pyc
 /.vscode
 
-/data
-/experiments
-/models
-/unit_test
 
 run.sh
 mc.sh
+data/
+experiments/
+models/
 so100_dreamdataset_train/
-so100_dream/
+images/
+checkerboard_images/
