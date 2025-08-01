@@ -115,18 +115,16 @@ We use config files in `configs/` to specify the training process. We recommend 
 
 ### Synthetic Datasets
 
-Firstly, pretrain the depthnet (root depth estimator) for 100 epochs for each robot arm:
+Firstly, pretrain the depthnet (root depth estimator) for 100 epochs for so100 arm:
 ```bash
-python scripts/train.py --config configs/panda/depthnet.yaml
-python scripts/train.py --config configs/kuka/depthnet.yaml
-python scripts/train.py --config configs/baxter/depthnet.yaml
+python scripts/train.py --config configs/so100/depthnet.yaml
+
 ```
 
-With depthnet pretrained, we can train the full network for 100 epochs:
+With depthnet pretrained, we can train the full network for 100 or 700 epochs:
 ```bash
-python scripts/train.py --config configs/panda/full.yaml
-python scripts/train.py --config configs/kuka/full.yaml
-python scripts/train.py --config configs/baxter/full.yaml
+python scripts/train.py --config configs/so100/full.yaml
+
 ```
 To save your time when reproducing results of our paper, we provide readily-pretrained [depthnet model weights](https://drive.google.com/drive/folders/1rWC2bbA3U0IiZ7oDoKIVsWK_m4JkVarA?) for full network training. To use them, you can modify the `configs/{robot}/full.yaml` file by filling in the `pretrained_rootnet` field with the path of the downloaded `.pk` file. 
 
